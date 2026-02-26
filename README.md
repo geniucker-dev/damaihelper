@@ -1,223 +1,246 @@
-# TicketMaster Pro V4.5 - 企业级票务自动化框架
-[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
+# 大麦助手 (Damai Helper)
 
-> **2026年票务生态报告**：全球票务平台风控升级，平均开票延迟<200ms，黄牛脚本成功率降至15%。  
-> TicketMaster Pro 不是玩具级脚本，而是**生产级分布式框架**。  
-> 兼容淘票票、猫眼、缤玩岛、ShowStart、票星球、永乐票务、摩天轮、票牛、演出网等20+平台。  
-> 架构亮点：微服务式模块化 + eBPF级性能追踪 + ML驱动决策 + 零信任安全模型。  
-> 已服务1000+内部测试用户，平均成功率78%（基于2025Q4数据）。  
-> **警告**：本框架仅限学术/研究用途，商用风险自负。
+大麦助手是一款基于 Selenium 的大麦网（damai.cn）自动抢票工具，支持命令行和图形界面两种使用方式。
 
-## 架构概述（2026 V4.5）
+> **免责声明**：本项目仅供学习交流，请遵守大麦网用户协议及相关法律法规，切勿用于商业用途。
 
-TicketMaster Pro 采用**事件驱动 + 响应式编程**范式，核心基于asyncio + RxPy，确保高并发低延迟。  
-- **入口层**：CLI/REST API/WebSocket 接口，支持Kubernetes部署。  
-- **核心引擎**：状态机FSM（Finite State Machine）管理抢票流程：Idle → Login → Monitor → Preheat → Strike → Checkout → Notify。  
-- **数据层**：Redis（缓存/队列） + MongoDB（日志/配置持久化） + InfluxDB（时序监控）。  
-- **扩展性**：插件系统（基于entry_points），易集成新平台适配器。  
-- **性能指标**：单节点QPS 500+，端到端延迟<50ms（无代理），内存足迹<200MB/账户。  
-- **容错机制**：Circuit Breaker（Hystrix式） + Exponential Backoff + Dead Letter Queue。  
+---
 
-**系统依赖**：  
-- Python 3.10+ (asyncio, typing_extensions)  
-- 浏览器自动化：undetected-chromedriver v2.0+ (anti-bot)  
-- 网络栈：aiohttp, httpx (TLS指纹自定义)  
-- ML组件：scikit-learn, onnxruntime (本地推理)  
-- 调度：celery, APScheduler (分布式cron)  
-- 监控：prometheus + grafana (预置dashboard)  
+## 目录
 
-安装：`pip install -r requirements.txt` 或 `docker-compose up -d`（包含Redis/Mongo）。  
+- [环境要求](#环境要求)
+- [安装步骤](#安装步骤)
+- [配置文件说明](#配置文件说明)
+- [使用方式](#使用方式)
+  - [方式一：Windows 一键启动（推荐）](#方式一windows-一键启动推荐)
+  - [方式二：图形界面（GUI）](#方式二图形界面gui)
+  - [方式三：命令行运行](#方式三命令行运行)
+- [抢票流程详解](#抢票流程详解)
+- [常见问题](#常见问题)
 
-## 2026年1月专业级升级（V4.5）
+---
 
-- **高级反检测栈**  
-  - **指纹工程**：动态生成浏览器指纹（Hardware Concurrency, Screen Resolution, Timezone Offset等30+维度），使用GAN模型随机化分布，避免模式匹配。  
-  - **行为仿真**：鼠标轨迹使用Catmull-Rom样条曲线模拟，点击延迟服从Weibull分布（λ=1.5, k=2.0）。  
-  - **网络伪装**：自定义JA3指纹（基于utls库），HTTP/2帧优先级随机化，模拟真实浏览器TLS握手。  
-  - **检测率**：内部测试<3%（vs. 标准Selenium的45%）。  
+## 环境要求
 
-- **AI决策核心**  
-  - **模型**：LSTM (2层, hidden=128) + Attention机制，输入特征：历史放票时序、当前CDN延迟、队列深度、平台负载。  
-  - **训练**：基于10万+历史日志（匿名化），离线训练，ONNX导出本地推理（推理时间<5ms）。  
-  - **输出**：最佳出手偏移（e.g., -1.8s），置信度阈值0.85以上自动应用。  
-  - **Fallback**：若AI失败，退回NTP同步 + 固定预热（-3s/-1s/0s）。  
+| 项目 | 要求 |
+|------|------|
+| 操作系统 | Windows（推荐）/ macOS / Linux |
+| Python | 3.8 及以上（推荐 3.12） |
+| 浏览器 | Google Chrome |
+| ChromeDriver | 与已安装的 Chrome 版本匹配 |
 
-- **分布式扩展**  
-  - **任务分发**：Celery + RabbitMQ，花瓣式拓扑（Master节点协调，Worker节点执行账户任务）。  
-  - **负载均衡**：基于eBPF（bcc工具）监控CPU/IO，动态迁移任务。  
-  - **规模**：支持100+节点集群，横向扩展线性。  
+### 获取 ChromeDriver
 
-- **错误自愈与诊断**  
-  - **错误码库**：内置300+平台特定错误（e.g., 淘票票"ERR_1001:风控" → 切换IP + 延时5s重试）。  
-  - **自愈策略**：使用Polly库实现Retry/Timeout/Fallback。  
-  - **诊断工具**：`--trace`模式启用pprof式性能剖析，生成火焰图。  
+1. 查看本机 Chrome 版本：在地址栏输入 `chrome://version/`
+2. 前往 [ChromeDriver 下载页](https://googlechromelabs.github.io/chrome-for-testing/) 下载与 Chrome 版本一致的驱动
+3. 将 `chromedriver.exe`（Windows）或 `chromedriver`（macOS/Linux）放置到项目根目录，或记录其完整路径
 
-- **验证码处理流水线**  
-  - **检测**：监控页面DOM变化，hook `captcha`关键词。  
-  - **分类**：图像哈希（pHash）匹配类型（图形/滑块/点选）。  
-  - **求解**：多引擎并行 - PaddleOCR (文本) + YOLOv5 (对象检测) + 自定义CNN (滑块轨迹生成)。  
-  - **准确率**：97.2% (基准测试，N=5000样本)。  
-  - **伪代码示例**：  
-    ```python
-    async def solve_captcha(driver, type_):
-        if type_ == 'slider':
-            img = await driver.screenshot_as_base64()
-            track = generate_track(img)  # CNN预测缺口位置，生成Bezier曲线轨迹
-            await simulate_drag(driver, track)  # Appium touch action
-        elif type_ == 'text':
-            text = paddle_ocr(img)
-            await input_text(driver, text)
-        return success_rate > 0.9
-    ```  
+---
 
-- **可视化与监控**  
-  - **Dashboard**：基于Streamlit + Plotly，实时图表：成功率折线、账户热力图、延迟直方图。  
-  - **API端点**：`/metrics`暴露Prometheus指标，`/logs` WebSocket推送尾日志。  
-  - **警报**：集成PagerDuty式阈值触发（e.g., 成功率<50% → 邮件）。  
+## 安装步骤
 
-## 核心功能深度剖析
-
-| 模块 | 技术细节 | 关键指标 | 扩展点 |
-|------|----------|----------|--------|
-| **拟人操作** | Appium Server + Custom Action Chains；滑动速度: 200-500px/s, 点击抖动: ±5px。 | 检测回避率: 95% | Hook自定义行为插件 (e.g., random_scroll.py) |
-| **平台适配** | Playwright interceptor捕获XHR/WS；动态XPath: //*[contains(@class,'buy-btn')] | 适配时间: <1h/新平台 | platform_adapters/ dir, 继承BaseAdapter |
-| **代理管理** | ProxyBroker2采集 + aiohttp session；验证: TTL<100ms, 匿名度>high。 | 池大小: 1000+ | 支持Tor/Shadowsocks集成 |
-| **验证码** | ONNX runtime + 多模型ensemble；训练数据: 自定义数据集 (augmented with albumentations)。 | 求解时间: <2s | solver_plugins/ dir |
-| **捡漏监控** | asyncio.gather并发轮询；backoff: min(1s) * 2**attempt。 | 检测延迟: <1s | 配置alert_rules.json |
-| **通知** | Async多渠道: httpx.post for Telegram, smtplib for email。 | 投递成功: 99.9% | notifiers/ dir, 支持自定义 |
-| **时间控制** | ntplib.sync + asyncio.sleep；误差校准: <10ms。 | 出手精度: 99% | 支持外部NTP服务器 |
-| **日志** | structlog + ELK兼容；字段: timestamp, level, account_id, event_type, payload。 | 存储: 旋转文件 + Mongo | log_processors/ for PII脱敏 |
-
-## 高级配置文件（config.yaml推荐，JSON兼容）
-
-使用YAML提升可读性，支持环境变量注入（e.g., ${PROXY_POOL}）。
-
-```yaml
-version: 4.5
-global:
-  log_level: DEBUG
-  timezone: Asia/Shanghai
-  ntp_servers: [time.google.com, ntp.aliyun.com]
-  dashboard:
-    enable: true
-    host: 0.0.0.0
-    port: 8765
-accounts:
-  acc_primary:
-    platform: taopiaopiao
-    credentials:
-      mobile: 138xxxxxxxx
-      password: xxxxxx
-      otp_secret: optional_2fa_key
-    target:
-      event_url: https://h5.m.taopiaopiao.com/detail/987654321
-      priorities:
-        date: [1, 2]
-        session: [1]
-        price_range: lowest_to_highest
-      tickets: 2
-      viewers: [0, 1]  # 0-indexed
-    proxy:
-      type: socks5
-      addr: user:pass@proxy.example.com:1080
-      rotate_interval: 300s
-    anti_detect:
-      ua: random_mobile
-      fingerprint_seed: 42  # for reproducibility
-strategy:
-  auto_strike: true
-  strike_time: 2026-01-25T12:00:00
-  preheat_stages: [5.0, 2.0, 0.5]  # seconds before strike
-  ai_enabled: true
-  ai_model_path: models/lstm_onnx.onnx
-  max_retries: 180
-  retry_backoff: exponential  # factor=1.5
-monitor:
-  enable: true
-  poll_interval: 1.5s
-  triggers:
-    - price_drop > 10%
-    - tickets_added > 0
-    - status_change: soldout -> available
-notification:
-  channels:
-    - telegram:
-        bot_token: 123456:ABC-DEF
-        chat_id: -987654321
-    - email:
-        smtp: smtp.example.com:465
-        user: alert@domain.com
-        pass: zzzzzz
-        recipients: [user@domain.com]
-plugins:
-  custom: [my_adapter.py, extra_notifier.py]
-```
-
-## 命令行接口（CLI）扩展
-
-基于click库，类型安全参数。
+### 1. 克隆或下载项目
 
 ```bash
-Usage: ticket_pro.py [OPTIONS]
-
-Options:
-  -c, --config PATH              指定配置文件 (default: config.yaml)
-  --multi / --no-multi           启用多账户并发 (default: true)
-  --workers INTEGER              Worker进程数 (default: CPU cores * 2)
-  --monitor-only                 只监控不抢购
-  --debug                        调试模式 (slow motion + verbose logs)
-  --trace                        启用性能追踪 (生成pprof文件)
-  --dashboard / --no-dashboard   启动Web dashboard
-  --help                         Show this message and exit.
+git clone https://github.com/geniucker-dev/damaihelper.git
+cd damaihelper
 ```
 
-**示例**：  
-`ticket_pro.py -c prod_config.yaml --multi --workers 16 --dashboard`  
+### 2. 安装 Python 依赖
 
-## 平台适配器开发指南
-
-每个平台继承`BaseAdapter`，实现关键钩子。
-
-```python
-from core import BaseAdapter, DriverContext
-
-class TaoPiaoPiaoAdapter(BaseAdapter):
-    PLATFORM = 'taopiaopiao'
-    
-    async def login(self, driver: DriverContext, creds: dict) -> bool:
-        await driver.get('https://h5.m.taopiaopiao.com/login')
-        await driver.fill('#mobile', creds['mobile'])
-        await driver.click('#send_otp')
-        otp = await self._wait_for_otp(creds['otp_secret'])  # 2FA处理
-        await driver.fill('#otp', otp)
-        return await driver.wait_for_element('#logged_in', timeout=30)
-    
-    async def monitor_inventory(self, driver, event_url: str) -> dict:
-        await driver.get(event_url)
-        inventory = await driver.execute_script("""
-            return {
-                sessions: document.querySelectorAll('.session').length,
-                prices: Array.from(document.querySelectorAll('.price')).map(e => e.textContent)
-            };
-        """)
-        return inventory
-    
-    def handle_error(self, code: str) -> str:
-        if code == 'ERR_WINDCTRL':
-            return 'switch_proxy_and_retry'
-        return 'abort'
+```bash
+pip install -r requirements.txt
 ```
 
-**测试**：`pytest tests/adapters/test_taopiaopiao.py --headless`  
+> **提示**：建议使用虚拟环境（venv 或 conda）隔离依赖，避免版本冲突。
 
-## 安全与最佳实践
+使用 conda：
 
-- **代理策略**：优先商用池 (e.g., Luminati/Oxylabs)，免费池仅测试用。  
-- **账户管理**：使用Vault/HashiCorp存储凭据，避免硬编码。  
-- **法律合规**：框架不鼓励违规；添加`--compliance-mode`强制限流/日志审计。  
-- **性能调优**：监控`/metrics`，调整`workers`基于CPU利用率<80%。  
-- **常见问题**：IP封禁 → 增加rotate_interval；验证码失败 → 更新模型权重。  
+```bash
+conda create --name damai python=3.12 -y
+conda activate damai
+pip install -r requirements.txt
+```
 
-## 贡献与社区
+---
 
-- **Issue Tracker**：报告bug/请求feature。  
+## 配置文件说明
+
+命令行版本读取项目**根目录**下的 `config.json` 文件。可参照 `config/config.json` 进行配置，将其复制到根目录：
+
+```bash
+cp config/config.json ./config.json   # macOS / Linux
+copy config\config.json config.json   # Windows
+```
+
+下表说明各字段含义：
+
+| 字段 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| `date` | 数组（整数） | 期望日期的**序号**优先级列表（1 为第一个日期）。按顺序尝试，取第一个可用日期 | `[1, 2, 3]` |
+| `sess` | 数组（整数） | 场次的**序号**优先级列表（1 为第一场）。跳过"无票"场次，取第一个有票场次 | `[1, 2]` |
+| `price` | 数组（整数） | 票价档次的**序号**优先级列表（1 为第一个档次）。跳过缺货档次，取第一个有货档次 | `[1, 2, 3]` |
+| `real_name` | 数组（整数） | 实名制观演人的序号列表 | `[1, 2]` |
+| `nick_name` | 字符串 | 大麦网账号昵称（用于验证登录状态） | `"张三"` |
+| `ticket_num` | 整数 | 购买票数 | `2` |
+| `viewer_person` | 数组（整数） | 观影人序号优先级列表（1 为第一位观影人）。按列表顺序选择 | `[1, 2]` |
+| `driver_path` | 字符串 | ChromeDriver 的**完整路径** | `"C:\\path\\to\\chromedriver.exe"` |
+| `damai_url` | 字符串 | 大麦网首页地址（用于扫码登录） | `"https://www.damai.cn/"` |
+| `target_url` | 字符串 | 目标演出详情页的手机版链接（`m.damai.cn` 域名） | `"https://m.damai.cn/damai/detail/item.html?itemId=714001339730"` |
+
+### 配置示例
+
+```json
+{
+    "date": [1, 2],
+    "sess": [1, 2],
+    "price": [1, 2, 3],
+    "real_name": [1],
+    "nick_name": "你的昵称",
+    "ticket_num": 2,
+    "viewer_person": [1, 2],
+    "driver_path": "C:\\Users\\你的用户名\\Downloads\\chromedriver.exe",
+    "damai_url": "https://www.damai.cn/",
+    "target_url": "https://m.damai.cn/damai/detail/item.html?itemId=目标演出ID"
+}
+```
+
+> **如何获取 `target_url`**：在大麦网找到目标演出，将网址中 `www.damai.cn` 改为 `m.damai.cn`，保留后面的路径和参数即可。
+
+---
+
+## 使用方式
+
+### 方式一：Windows 一键启动（推荐）
+
+双击项目根目录下的 **`win一件运行.bat`**（即"一键运行"），脚本会自动：
+
+1. 创建名为 `joker` 的 conda 虚拟环境（Python 3.12）
+2. 激活虚拟环境
+3. 安装 `requirements.txt` 中的依赖
+4. 启动图形界面（GUI）
+
+> **前提**：系统中已安装 [Anaconda](https://www.anaconda.com/) 或 [Miniconda](https://docs.conda.io/en/latest/miniconda.html)。
+
+---
+
+### 方式二：图形界面（GUI）
+
+运行 GUI 程序：
+
+```bash
+python GUI.py
+```
+
+GUI 启动后界面包含以下标签页：
+
+| 标签页 | 功能 |
+|--------|------|
+| 全局设置 | 日志等级、时区、NTP 服务器、Dashboard 地址 |
+| 账户配置 | 平台选择、手机号/密码、目标演出链接、日期/场次/票价优先级、代理设置 |
+| 策略设置 | 开抢时间、预热阶段、AI 决策、最大重试次数 |
+| 监控设置 | 库存监控开关、轮询间隔、触发条件 |
+| 通知设置 | Telegram Bot 和邮件通知配置 |
+| 插件扩展 | 自定义插件路径 |
+| 依赖管理 | 模拟安装依赖（演示用） |
+
+**操作步骤：**
+
+1. 点击菜单 **文件 → 加载示例配置** 可加载 `config/demo_config.json` 作为参考
+2. 在各标签页填写实际配置（重点填写"账户配置"中的演出链接和观影人信息）
+3. 点击菜单 **文件 → 保存配置** 将配置保存为 `config.json`
+4. 勾选"启用自动抢票"，点击 **开始抢票** 启动任务
+
+---
+
+### 方式三：命令行运行
+
+确保根目录已有正确的 `config.json`，然后执行：
+
+```bash
+python ticket_script.py
+```
+
+---
+
+## 抢票流程详解
+
+程序运行后按以下流程执行：
+
+```
+启动
+  │
+  ├─ 检查 cookies.pkl 是否存在
+  │     │
+  │     ├─ 不存在 → 打开浏览器，访问大麦网首页
+  │     │             → 点击登录按钮
+  │     │             → 等待用户扫码完成登录
+  │     │             → 保存 Cookie 到 cookies.pkl
+  │     │             → 重启浏览器
+  │     │
+  │     └─ 存在 → 直接加载已保存的 Cookie
+  │
+  ├─ 打开目标演出详情页（手机版）
+  │
+  └─ 循环抢票
+        │
+        ├─ 点击"立即购买"/"立即预订"按钮
+        ├─ 选择日期（按 date 列表优先级）
+        ├─ 选择场次（按 sess 列表优先级，跳过无票场次）
+        ├─ 选择票价（按 price 列表优先级，跳过缺货档次）
+        ├─ 设置购票数量（ticket_num）
+        ├─ 跳转到订单确认页
+        ├─ 选择观影人（按 viewer_person 列表）
+        ├─ 提交订单
+        └─ 等待跳转到支付宝支付页面
+              → 跳转成功后需**手动完成支付**
+```
+
+### 注意事项
+
+- **首次运行**会打开浏览器要求**扫码登录**，登录成功后 Cookie 保存到 `cookies.pkl`，后续运行自动复用。
+- 若 Cookie 过期（登录状态失效），删除 `cookies.pkl` 后重新运行即可重新扫码。
+- 到达支付页面后，程序会暂停并等待用户输入，需**手动完成支付**，支付宝页面不会自动跳转。
+- 若长时间未跳转到支付宝页面，可在控制台输入 `1` 确认成功，或等待程序自动重试。
+- `date`、`sess`、`price`、`viewer_person` 均为**从 1 开始**的序号，对应页面上选项从左到右/从上到下的顺序。
+
+---
+
+## 常见问题
+
+**Q: 提示 `chromedriver` 版本不匹配怎么办？**
+
+A: 前往 [ChromeDriver 下载页](https://googlechromelabs.github.io/chrome-for-testing/) 下载与本机 Chrome 版本完全一致的 ChromeDriver，替换项目根目录中的 `chromedriver.exe`，并更新 `config.json` 中的 `driver_path`。
+
+---
+
+**Q: Cookie 失效后如何重新登录？**
+
+A: 删除项目根目录下的 `cookies.pkl` 文件，重新运行脚本，会自动打开浏览器要求扫码登录。
+
+---
+
+**Q: 如何找到目标演出的 `itemId`？**
+
+A: 在大麦网找到目标演出页面，URL 中会包含类似 `itemId=714001339730` 的参数，将完整的手机版链接（`m.damai.cn/damai/detail/item.html?itemId=...`）填入 `target_url` 即可。
+
+---
+
+**Q: `viewer_person` 怎么填？**
+
+A: 在大麦网"我的"→"实名信息"中查看已添加的观演人列表，按从上到下的顺序，第一位序号为 `1`，第二位为 `2`，以此类推。`viewer_person: [1, 2]` 表示选择第 1 和第 2 位观演人。
+
+---
+
+**Q: 运行后显示"页面刷新出错"或找不到购票按钮？**
+
+A: 可能是大麦网页面结构发生变化，或演出尚未开始售票。请确认：
+- `target_url` 为 `m.damai.cn` 的手机版链接（非 `www.damai.cn`）
+- 演出确实在售或即将开售
+- Chrome 和 ChromeDriver 版本匹配
+
+---
+
+**Q: Windows 双击 `.bat` 文件提示找不到 conda？**
+
+A: 请先安装 [Anaconda](https://www.anaconda.com/) 或 [Miniconda](https://docs.conda.io/en/latest/miniconda.html)，并确保安装时勾选了"添加到系统 PATH"选项。或直接在已激活 conda 环境的命令行中手动执行 `python GUI.py`。
